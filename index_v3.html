@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Casque & Microphone complet</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        button:hover { background-color: #27ae60; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #stopBtn { background-color: #e74c3c; }
+        #stopBtn:hover { background-color: #c0392b; }
+        canvas {
+            width: 100%;
+            height: 120px;
+            background-color: #2c3e50;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .status { font-weight: bold; margin: 15px 0; color: #7f8c8d; }
+        .audio-player-container {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px dashed #eceff1;
+        }
+        audio { width: 100%; margin-top: 10px; display: none; } /* Remplacé par notre lecteur intégré ergonomique */
+        
+        /* Balance */
+        .balance-container {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .balance-label { font-weight: bold; font-size: 13px; color: #495057; }
+        .balance-slider { flex-grow: 1; margin: 0 15px; cursor: pointer; }
+
+        /* Timeline globale avec curseurs et lecture */
+        .trim-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            margin: 15px 0;
+            text-align: left;
+        }
+        .trim-container label {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .timeline-slider-box {
+            position: relative;
+            height: 45px;
+            margin: 10px 0;
+        }
+        .timeline-slider-box input[type="range"] {
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 100%;
+            background: none;
+            pointer-events: none;
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 0;
+        }
+        
+        /* Pouces des curseurs Début / Fin / Lecture */
+        .timeline-slider-box input[type="range"]::-webkit-slider-thumb {
+            pointer-events: auto;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            -webkit-appearance: none;
+            z-index: 5;
+        }
+        #startRange::-webkit-slider-thumb { background: #2ecc71; } /* Vert pour le début */
+        #endRange::-webkit-slider-thumb { background: #e74c3c; }   /* Rouge pour la fin */
+        #seekRange::-webkit-slider-thumb { background: #f1c40f; width: 14px; height: 14px; } /* Jaune/Orange pour la position de lecture */
+
+        .timeline-track {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: #dcdde1;
+            border-radius: 3px;
+            z-index: 1;
+        }
+        .timeline-selection {
+            position: absolute;
+            top: 20px;
+            height: 6px;
+            background: #3498db;
+            border-radius: 3px;
+            z-index: 2;
+        }
+
+        .trim-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #495057;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .playback-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .playback-controls button {
+            flex: 1;
+            font-size: 13px;
+            padding: 8px 10px;
+            margin: 0;
+        }
+        .btn-play-all { background-color: #34495e; }
+        .btn-play-all:hover { background-color: #2c3e50; }
+        .btn-play-trim { background-color: #2980b9; }
+        .btn-play-trim:hover { background-color: #1f618d; }
+
+        .download-btn {
+            background-color: #9b59b6;
+            display: block;
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+            text-decoration: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            margin-top: 15px;
+            transition: background 0.3s;
+            cursor: pointer;
+            border: none;
+        }
+        .download-btn:hover { background-color: #8e44ad; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Test Micro & Enregistrement</h1>
+    
+    <div>
+        <button id="startBtn">⏺</button>
+        <button id="stopBtn" disabled>⏹</button>
+    </div>
+
+    <div class="status" id="statusText">Statut : Prêt</div>
+    <canvas id="visualizer"></canvas>
+
+    <div class="audio-player-container" id="playerContainer" style="display: none;">
+        
+        <div class="balance-container">
+            <span class="balance-label">⬅️ Gauche</span>
+            <input type="range" id="balanceSlider" class="balance-slider" min="-1" max="1" step="0.1" value="0">
+            <span class="balance-label">Droite ➡️</span>
+        </div>
+
+        <div class="trim-container">
+            <label>✂️ Ajuster l'extrait et position de lecture :</label>
+            
+            <div class="timeline-slider-box">
+                <div class="timeline-track"></div>
+                <div id="timelineSelection" class="timeline-selection"></div>
+                <!-- Curseur de lecture en temps réel -->
+                <input type="range" id="seekRange" min="0" max="100" step="0.1" value="0" style="z-index: 4;">
+                <!-- Curseur Début (Vert) -->
+                <input type="range" id="startRange" min="0" max="100" step="0.1" value="0" style="z-index: 3;">
+                <!-- Curseur Fin (Rouge) -->
+                <input type="range" id="endRange" min="0" max="100" step="0.1" value="100" style="z-index: 3;">
+            </div>
+
+            <div class="trim-info">
+                <span style="color: #27ae60;">🟢 Début : <span id="startTimeVal">0.0s</span></span>
+                <span style="color: #f39c12;">🟡 Position : <span id="currentTimeVal">0.0s</span></span>
+                <span style="color: #c0392b;">🔴 Fin : <span id="endTimeVal">0.0s</span></span>
+            </div>
+
+            <div class="playback-controls">
+                <button id="playAllBtn" class="btn-play-all">▶️ Tout écouter</button>
+                <button id="playTrimBtn" class="btn-play-trim">▶️ Écouter l'extrait</button>
+            </div>
+        </div>
+
+        <button id="downloadBtn" class="download-btn">⬇️ Télécharger l'extrait sélectionné</button>
+    </div>
+</div>
+
+<script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusText = document.getElementById('statusText');
+    const canvas = document.getElementById('visualizer');
+    const canvasCtx = canvas.getContext('2d');
+    const playerContainer = document.getElementById('playerContainer');
+    const balanceSlider = document.getElementById('balanceSlider');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    const playAllBtn = document.getElementById('playAllBtn');
+    const playTrimBtn = document.getElementById('playTrimBtn');
+
+    const startRange = document.getElementById('startRange');
+    const endRange = document.getElementById('endRange');
+    const seekRange = document.getElementById('seekRange');
+    
+    const startTimeVal = document.getElementById('startTimeVal');
+    const endTimeVal = document.getElementById('endTimeVal');
+    const currentTimeVal = document.getElementById('currentTimeVal');
+    const timelineSelection = document.getElementById('timelineSelection');
+
+    let audioCtx;
+    let analyser;
+    let stream;
+    let source;
+    let animationId;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    let playerAudioCtx;
+    let pannerNode;
+    let recordedAudioBuffer = null;
+    let activeSourceNode = null;
+    let playbackTimer = null;
+    let playbackStartTime = 0;
+    let playbackOffset = 0;
+    let isPlaying = false;
+
+    startBtn.addEventListener('click', async () => {
+        audioChunks = []; 
+        playerContainer.style.display = 'none';
+
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            
+            stream.getTracks().forEach(track => {
+                track.onended = () => {
+                    console.warn("Micro débranché.");
+                    if (mediaRecorder && mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                    }
+                    cleanupAfterRecording();
+                    statusText.textContent = "⚠️ Le microphone a été débranché.";
+                    statusText.style.color = "#e74c3c";
+                };
+            });
+
+            statusText.textContent = "🔴 Enregistrement en cours... Parlez maintenant.";
+            statusText.style.color = "#e74c3c";
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+
+            mediaRecorder.onstop = async () => {
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+
+                try {
+                    stopPlayback();
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    recordedAudioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+                    tempCtx.close();
+
+                    const duration = recordedAudioBuffer.duration;
+
+                    startRange.min = 0; startRange.max = duration; startRange.value = 0;
+                    endRange.min = 0; endRange.max = duration; endRange.value = duration;
+                    seekRange.min = 0; seekRange.max = duration; seekRange.value = 0;
+
+                    updateUIAndBar();
+                    playerContainer.style.display = 'block'; 
+                } catch (e) {
+                    console.error("Erreur décodage audio :", e);
+                }
+            };
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+
+            source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+
+            mediaRecorder.start();
+            visualize();
+
+        } catch (err) {
+            console.error("Erreur :", err);
+            statusText.textContent = "Erreur : Impossible d'accéder au micro.";
+            statusText.style.color = "#e74c3c";
+        }
+    });
+
+    function cleanupAfterRecording() {
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+        cancelAnimationFrame(animationId);
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
+
+    stopBtn.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+        cleanupAfterRecording();
+        statusText.textContent = "Statut : Enregistrement terminé. Ajustez et testez vos repères.";
+        statusText.style.color = "#2ecc71";
+    });
+
+    function updateUIAndBar() {
+        let start = parseFloat(startRange.value);
+        let end = parseFloat(endRange.value);
+        const maxDuration = parseFloat(endRange.max) || 1;
+
+        if (start >= end) {
+            start = Math.max(0, end - 0.2);
+            startRange.value = start;
+        }
+
+        startTimeVal.textContent = start.toFixed(1) + "s";
+        endTimeVal.textContent = end.toFixed(1) + "s";
+
+        const percentStart = (start / maxDuration) * 100;
+        const percentEnd = (end / maxDuration) * 100;
+
+        timelineSelection.style.left = percentStart + '%';
+        timelineSelection.style.width = (percentEnd - percentStart) + '%';
+    }
+
+    startRange.addEventListener('input', updateUIAndBar);
+    endRange.addEventListener('input', updateUIAndBar);
+
+    // Permettre de cliquer/glisser sur le curseur de lecture pour changer la position courante
+    seekRange.addEventListener('input', () => {
+        currentTimeVal.textContent = parseFloat(seekRange.value).toFixed(1) + "s";
+        if (isPlaying) {
+            // Si on déplace le curseur pendant la lecture, on relance la lecture à cet endroit
+            const targetTime = parseFloat(seekRange.value);
+            const endTime = parseFloat(endRange.value);
+            if (targetTime < endTime) {
+                startPlayingAudio(targetTime, endTime);
+            }
+        }
+    });
+
+    function initPlayerAudio() {
+        if (!playerAudioCtx) {
+            playerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            pannerNode = playerAudioCtx.createStereoPanner();
+            pannerNode.connect(playerAudioCtx.destination);
+        }
+    }
+
+    function stopPlayback() {
+        isPlaying = false;
+        if (activeSourceNode) {
+            try { activeSourceNode.stop(); } catch(e){}
+            activeSourceNode = null;
+        }
+        if (playbackTimer) {
+            clearInterval(playbackTimer);
+            playbackTimer = null;
+        }
+    }
+
+    function startPlayingAudio(fromTime, toTime) {
+        if (!recordedAudioBuffer) return;
+        initPlayerAudio();
+        if (playerAudioCtx.state === 'suspended') playerAudioCtx.resume();
+
+        stopPlayback();
+
+        activeSourceNode = playerAudioCtx.createBufferSource();
+        activeSourceNode.buffer = recordedAudioBuffer;
+        activeSourceNode.connect(pannerNode);
+
+        const duration = toTime - fromTime;
+        if (duration <= 0) return;
+
+        playbackStartTime = playerAudioCtx.currentTime;
+        playbackOffset = fromTime;
+        isPlaying = true;
+
+        activeSourceNode.start(0, fromTime, duration);
+
+        // Suivi de la position de lecture en temps réel sur le curseur jaune
+        playbackTimer = setInterval(() => {
+            if (!isPlaying) return;
+            const elapsed = playerAudioCtx.currentTime - playbackStartTime;
+            const currentPos = playbackOffset + elapsed;
+
+            if (currentPos >= toTime) {
+                stopPlayback();
+                seekRange.value = toTime;
+                currentTimeVal.textContent = toTime.toFixed(1) + "s";
+            } else {
+                seekRange.value = currentPos;
+                currentTimeVal.textContent = currentPos.toFixed(1) + "s";
+            }
+        }, 50);
+
+        activeSourceNode.onended = () => {
+            if (isPlaying) stopPlayback();
+        };
+    }
+
+    // Bouton "Tout écouter" (depuis la position actuelle du curseur jaune ou du début jusqu'à la fin)
+    playAllBtn.addEventListener('click', () => {
+        if (!recordedAudioBuffer) return;
+        const startFrom = parseFloat(seekRange.value) || 0;
+        const totalDuration = recordedAudioBuffer.duration;
+        startPlayingAudio(startFrom, totalDuration);
+    });
+
+    // Bouton "Écouter l'extrait" (strictement entre le curseur vert Début et le rouge Fin)
+    playTrimBtn.addEventListener('click', () => {
+        if (!recordedAudioBuffer) return;
+        const startTime = parseFloat(startRange.value);
+        const endTime = parseFloat(endRange.value);
+        seekRange.value = startTime;
+        startPlayingAudio(startTime, endTime);
+    });
+
+    // Téléchargement de l'extrait
+    downloadBtn.addEventListener('click', () => {
+        if (!recordedAudioBuffer) return;
+
+        const startTime = parseFloat(startRange.value);
+        const endTime = parseFloat(endRange.value);
+        const sampleRate = recordedAudioBuffer.sampleRate;
+        const startFrame = Math.floor(startTime * sampleRate);
+        const endFrame = Math.floor(endTime * sampleRate);
+        const frameCount = endFrame - startFrame;
+
+        if (frameCount <= 0) {
+            alert("La plage de sélection est invalide.");
+            return;
+        }
+
+        const offlineCtx = new OfflineAudioContext(recordedAudioBuffer.numberOfChannels, frameCount, sampleRate);
+        const sourceNode = offlineCtx.createBufferSource();
+        sourceNode.buffer = recordedAudioBuffer;
+        sourceNode.connect(offlineCtx.destination);
+        sourceNode.start(0, startTime, endTime - startTime);
+
+        offlineCtx.startRendering().renderedBuffer.then(renderedBuffer => {
+            const wavBlob = bufferToWave(renderedBuffer, frameCount, startTime);
+            const url = URL.createObjectURL(wavBlob);
+
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'test_casque_extrait.wav';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+        });
+    });
+
+    function bufferToWave(abuffer, len, startTimeOffset) {
+        let numOfChan = abuffer.numberOfChannels,
+            length = len * numOfChan * 2 + 44,
+            buffer = new ArrayBuffer(length),
+            view = new DataView(buffer),
+            channels = [], i, sample,
+            offset = 0,
+            pos = 0;
+
+        function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+        function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+        setUint32(0x46464952); "RIFF"
+        setUint32(length - 8);
+        setUint32(0x45564157); "WAVE"
+
+        setUint32(0x20746d66); "fmt "
+        setUint32(16);
+        setUint32(1);
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2);
+        setUint16(16);
+
+        setUint32(0x61746164); "data"
+        setUint32(length - pos - 4);
+
+        for (i = 0; i < abuffer.numberOfChannels; i++)
+            channels.push(abuffer.getChannelData(i));
+
+        let offsetStart = Math.floor(startTimeOffset * abuffer.sampleRate);
+        while (pos < length) {
+            for (i = 0; i < numOfChan; i++) {
+                sample = Math.max(-1, Math.min(1, channels[i][offsetStart + offset] || 0));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767);
+                view.setInt16(pos, sample, true);
+                pos += 2;
+            }
+            offset++;
+        }
+        return new Blob([buffer], { type: "audio/wav" });
+    }
+
+    balanceSlider.addEventListener('input', (e) => {
+        initPlayerAudio();
+        if (pannerNode) pannerNode.pan.value = e.target.value;
+    });
+
+    function visualize() {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+            animationId = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.fillStyle = '#2c3e50';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight, x = 0;
+
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 1.5;
+                canvasCtx.fillStyle = `rgb(${barHeight + 100}, 46, 214)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        draw();
+    }
+</script>
+
+</body>
+</html>
