@@ -26,7 +26,6 @@
             width: 100%;
         }
         h1 { color: #2c3e50; margin-bottom: 20px; }
-        p { color: #555; font-size: 14px; line-height: 1.5; }
         button {
             background-color: #2ecc71;
             color: white;
@@ -58,7 +57,7 @@
         }
         audio { width: 100%; margin-top: 10px; }
         
-        /* Styles pour la balance */
+        /* Balance */
         .balance-container {
             margin: 20px 0;
             display: flex;
@@ -70,13 +69,9 @@
             border: 1px solid #e9ecef;
         }
         .balance-label { font-weight: bold; font-size: 14px; color: #495057; }
-        .balance-slider {
-            flex-grow: 1;
-            margin: 0 15px;
-            cursor: pointer;
-        }
+        .balance-slider { flex-grow: 1; margin: 0 15px; cursor: pointer; }
 
-        /* Styles pour les curseurs de découpe */
+        /* Module de découpe ergonomique */
         .trim-container {
             background: #f8f9fa;
             padding: 15px;
@@ -90,32 +85,98 @@
             font-size: 13px;
             font-weight: bold;
             color: #495057;
-            margin-bottom: 5px;
-        }
-        .trim-container input[type="range"] {
-            width: 100%;
-            cursor: pointer;
             margin-bottom: 10px;
         }
+        
+        /* Barre de timeline personnalisée */
+        .timeline-slider-box {
+            position: relative;
+            height: 40px;
+            margin: 10px 0;
+        }
+        .timeline-slider-box input[type="range"] {
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 100%;
+            background: none;
+            pointer-events: none;
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 0;
+        }
+        .timeline-slider-box input[type="range"]::-webkit-slider-thumb {
+            pointer-events: auto;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3498db;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            -webkit-appearance: none;
+        }
+        .timeline-slider-box input[type="range"]::-moz-range-thumb {
+            pointer-events: auto;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3498db;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        /* Piste de fond fixe */
+        .timeline-track {
+            position: absolute;
+            top: 18px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: #dcdde1;
+            border-radius: 3px;
+            z-index: 1;
+        }
+        /* Portion sélectionnée mise en valeur */
+        .timeline-selection {
+            position: absolute;
+            top: 18px;
+            height: 6px;
+            background: #3498db;
+            border-radius: 3px;
+            z-index: 2;
+        }
+
         .trim-info {
             display: flex;
             justify-content: space-between;
-            font-size: 12px;
-            color: #666;
+            font-size: 13px;
+            color: #495057;
+            margin-top: 8px;
             font-weight: bold;
         }
 
-        /* Style pour le bouton de téléchargement */
+        .preview-btn {
+            background-color: #3498db;
+            font-size: 14px;
+            padding: 8px 16px;
+            margin-top: 5px;
+        }
+        .preview-btn:hover { background-color: #2980b9; }
+
         .download-btn {
             background-color: #9b59b6;
-            display: inline-block;
+            display: block;
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
             text-decoration: none;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 14px;
-            margin-top: 10px;
+            font-size: 15px;
+            margin-top: 15px;
             transition: background 0.3s;
             cursor: pointer;
             border: none;
@@ -137,32 +198,38 @@
     <canvas id="visualizer"></canvas>
 
     <div class="audio-player-container" id="playerContainer" style="display: none;">
-        <strong>🎙️ Votre Enregistrement :</strong><br>
+        <strong>🎙️ Lecture complète :</strong><br>
         <audio id="audioPlayer" controls></audio>
 
-        <!-- Module de réglage de la balance G/D -->
+        <!-- Balance G/D -->
         <div class="balance-container">
             <span class="balance-label">⬅️ Gauche</span>
             <input type="range" id="balanceSlider" class="balance-slider" min="-1" max="1" step="0.1" value="0">
             <span class="balance-label">Droite ➡️</span>
         </div>
 
-        <!-- Module de sélection Début / Fin -->
+        <!-- Découpage ergonomique -->
         <div class="trim-container">
-            <label>✂️ Découper l'extrait à télécharger :</label>
+            <label>✂️ Sélectionner l'extrait à conserver :</label>
             
-            <label for="startRange">Début : <span id="startTimeVal">0.0s</span></label>
-            <input type="range" id="startRange" min="0" max="100" step="0.1" value="0">
-
-            <label for="endRange">Fin : <span id="endTimeVal">100.0s</span></label>
-            <input type="range" id="endRange" min="0" max="100" step="0.1" value="100">
+            <div class="timeline-slider-box">
+                <div class="timeline-track"></div>
+                <div id="timelineSelection" class="timeline-selection"></div>
+                <input type="range" id="startRange" min="0" max="100" step="0.1" value="0">
+                <input type="range" id="endRange" min="0" max="100" step="0.1" value="100">
+            </div>
 
             <div class="trim-info">
-                <span>Durée totale : <span id="totalDurationVal">0s</span></span>
+                <span>Début : <span id="startTimeVal">0.0s</span></span>
+                <span>Fin : <span id="endTimeVal">0.0s</span></span>
+            </div>
+
+            <div style="text-align: center; margin-top: 12px;">
+                <button id="previewBtn" class="preview-btn">▶️ Relire l'extrait</button>
             </div>
         </div>
 
-        <!-- Bouton de Téléchargement de l'extrait -->
+        <!-- Téléchargement -->
         <button id="downloadBtn" class="download-btn">⬇️ Télécharger l'extrait sélectionné</button>
     </div>
 </div>
@@ -177,12 +244,13 @@
     const audioPlayer = document.getElementById('audioPlayer');
     const balanceSlider = document.getElementById('balanceSlider');
     const downloadBtn = document.getElementById('downloadBtn');
+    const previewBtn = document.getElementById('previewBtn');
 
     const startRange = document.getElementById('startRange');
     const endRange = document.getElementById('endRange');
     const startTimeVal = document.getElementById('startTimeVal');
     const endTimeVal = document.getElementById('endTimeVal');
-    const totalDurationVal = document.getElementById('totalDurationVal');
+    const timelineSelection = document.getElementById('timelineSelection');
 
     let audioCtx;
     let analyser;
@@ -195,8 +263,8 @@
     let playerAudioCtx;
     let playerSource;
     let pannerNode;
-
-    let recordedAudioBuffer = null; // Stocke le buffer audio brut pour le découpage
+    let recordedAudioBuffer = null;
+    let previewSourceNode = null;
 
     startBtn.addEventListener('click', async () => {
         audioChunks = []; 
@@ -211,18 +279,13 @@
             stopBtn.disabled = false;
 
             mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
+            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
 
             mediaRecorder.onstop = async () => {
                 const mimeType = mediaRecorder.mimeType || 'audio/webm';
                 const audioBlob = new Blob(audioChunks, { type: mimeType });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                
-                audioPlayer.src = audioUrl;
+                audioPlayer.src = URL.createObjectURL(audioBlob);
 
-                // Décoder le blob en AudioBuffer pour permettre le découpage précis
                 const arrayBuffer = await audioBlob.arrayBuffer();
                 const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
                 recordedAudioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
@@ -230,7 +293,6 @@
 
                 const duration = recordedAudioBuffer.duration;
 
-                // Configurer les curseurs de découpe
                 startRange.min = 0;
                 startRange.max = duration;
                 startRange.value = 0;
@@ -239,10 +301,7 @@
                 endRange.max = duration;
                 endRange.value = duration;
 
-                startTimeVal.textContent = "0.0s";
-                endTimeVal.textContent = duration.toFixed(1) + "s";
-                totalDurationVal.textContent = duration.toFixed(1) + "s";
-
+                updateUIAndBar();
                 playerContainer.style.display = 'block'; 
             };
 
@@ -264,50 +323,76 @@
     });
 
     stopBtn.addEventListener('click', () => {
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
-            mediaRecorder.stop();
-        }
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-        if (audioCtx) { audioCtx.close(); }
+        if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        if (audioCtx) audioCtx.close();
         cancelAnimationFrame(animationId);
         
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-        statusText.textContent = "Statut : Enregistrement terminé. Ajustez les curseurs et téléchargez.";
+        statusText.textContent = "Statut : Enregistrement terminé. Ajustez les curseurs et testez l'extrait.";
         statusText.style.color = "#2ecc71";
         startBtn.disabled = false;
         stopBtn.disabled = true;
     });
 
-    // Gestion de la mise à jour des libellés des curseurs
-    startRange.addEventListener('input', () => {
+    // Mise à jour de la barre visuelle bleue entre les curseurs
+    function updateUIAndBar() {
         let start = parseFloat(startRange.value);
         let end = parseFloat(endRange.value);
+        const maxDuration = parseFloat(endRange.max) || 1;
+
         if (start >= end) {
-            start = end - 0.1;
+            start = Math.max(0, end - 0.2);
             startRange.value = start;
         }
+
         startTimeVal.textContent = start.toFixed(1) + "s";
-    });
-
-    endRange.addEventListener('input', () => {
-        let start = parseFloat(startRange.value);
-        let end = parseFloat(endRange.value);
-        if (end <= start) {
-            end = start + 0.1;
-            endRange.value = end;
-        }
         endTimeVal.textContent = end.toFixed(1) + "s";
+
+        const percentStart = (start / maxDuration) * 100;
+        const percentEnd = (end / maxDuration) * 100;
+
+        timelineSelection.style.left = percentStart + '%';
+        timelineSelection.style.width = (percentEnd - percentStart) + '%';
+    }
+
+    startRange.addEventListener('input', updateUIAndBar);
+    endRange.addEventListener('input', updateUIAndBar);
+
+    // Bouton de Relecture de l'extrait sélectionné
+    previewBtn.addEventListener('click', () => {
+        if (!recordedAudioBuffer) return;
+
+        initPlayerAudio();
+        if (playerAudioCtx.state === 'suspended') {
+            playerAudioCtx.resume();
+        }
+
+        // Stopper un aperçu précédent s'il est en cours
+        if (previewSourceNode) {
+            try { previewSourceNode.stop(); } catch(e){}
+        }
+
+        const startTime = parseFloat(startRange.value);
+        const endTime = parseFloat(endRange.value);
+        const duration = endTime - startTime;
+
+        if (duration <= 0) return;
+
+        previewSourceNode = playerAudioCtx.createBufferSource();
+        previewSourceNode.buffer = recordedAudioBuffer;
+        
+        // Connecter via le panner pour respecter la balance G/D si l'utilisateur l'a bougée
+        previewSourceNode.connect(pannerNode);
+        previewSourceNode.start(0, startTime, duration);
     });
 
-    // Fonction pour générer et télécharger un fichier WAV découpé
+    // Téléchargement de l'extrait
     downloadBtn.addEventListener('click', () => {
         if (!recordedAudioBuffer) return;
 
         const startTime = parseFloat(startRange.value);
         const endTime = parseFloat(endRange.value);
-
         const sampleRate = recordedAudioBuffer.sampleRate;
         const startFrame = Math.floor(startTime * sampleRate);
         const endFrame = Math.floor(endTime * sampleRate);
@@ -318,7 +403,6 @@
             return;
         }
 
-        // Créer un nouveau buffer audio avec la sélection
         const offlineCtx = new OfflineAudioContext(recordedAudioBuffer.numberOfChannels, frameCount, sampleRate);
         const sourceNode = offlineCtx.createBufferSource();
         sourceNode.buffer = recordedAudioBuffer;
@@ -326,8 +410,7 @@
         sourceNode.start(0, startTime, endTime - startTime);
 
         offlineCtx.startRendering().renderedBuffer.then(renderedBuffer => {
-            // Convertir le buffer rendu en fichier WAV
-            const wavBlob = bufferToWave(renderedBuffer, frameCount);
+            const wavBlob = bufferToWave(renderedBuffer, frameCount, startTime);
             const url = URL.createObjectURL(wavBlob);
 
             const a = document.createElement('a');
@@ -343,8 +426,7 @@
         });
     });
 
-    // Utilitaire de conversion AudioBuffer vers WAV (Blob)
-    function bufferToWave(abuffer, len) {
+    function bufferToWave(abuffer, len, startTimeOffset) {
         let numOfChan = abuffer.numberOfChannels,
             length = len * numOfChan * 2 + 44,
             buffer = new ArrayBuffer(length),
@@ -353,50 +435,38 @@
             offset = 0,
             pos = 0;
 
-        function setUint16(data) {
-            view.setUint16(pos, data, true);
-            pos += 2;
-        }
+        function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+        function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
 
-        function setUint32(data) {
-            view.setUint32(pos, data, true);
-            pos += 4;
-        }
-
-        // En-tête RIFF WAVE
         setUint32(0x46464952); "RIFF"
-        setUint32(length - 8);  // file length - 8
+        setUint32(length - 8);
         setUint32(0x45564157); "WAVE"
 
-        // Sous-chunk fmt 
         setUint32(0x20746d66); "fmt "
-        setUint32(16);          // length = 16
-        setUint32(1);           // PCM (uncompressed)
+        setUint32(16);
+        setUint32(1);
         setUint16(numOfChan);
         setUint32(abuffer.sampleRate);
-        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-        setUint16(numOfChan * 2); // block-align
-        setUint16(16);          // 16-bit
+        setUint32(abuffer.sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2);
+        setUint16(16);
 
-        // Sous-chunk data
         setUint32(0x61746164); "data"
         setUint32(length - pos - 4);
 
         for (i = 0; i < abuffer.numberOfChannels; i++)
             channels.push(abuffer.getChannelData(i));
 
-        let offsetStart = Math.floor(parseFloat(startRange.value) * abuffer.sampleRate);
+        let offsetStart = Math.floor(startTimeOffset * abuffer.sampleRate);
         while (pos < length) {
             for (i = 0; i < numOfChan; i++) {
-                // Intercaler les canaux
-                sample = Math.max(-1, Math.min(1, channels[i][offsetStart + offset]));
-                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767); // 16-bit PCM
+                sample = Math.max(-1, Math.min(1, channels[i][offsetStart + offset] || 0));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767);
                 view.setInt16(pos, sample, true);
                 pos += 2;
             }
             offset++;
         }
-
         return new Blob([buffer], { type: "audio/wav" });
     }
 
@@ -405,7 +475,6 @@
             playerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             playerSource = playerAudioCtx.createMediaElementSource(audioPlayer);
             pannerNode = playerAudioCtx.createStereoPanner();
-
             playerSource.connect(pannerNode);
             pannerNode.connect(playerAudioCtx.destination);
         }
@@ -413,16 +482,12 @@
 
     balanceSlider.addEventListener('input', (e) => {
         initPlayerAudio();
-        if (pannerNode) {
-            pannerNode.pan.value = e.target.value;
-        }
+        if (pannerNode) pannerNode.pan.value = e.target.value;
     });
 
     audioPlayer.addEventListener('play', () => {
         initPlayerAudio();
-        if (playerAudioCtx.state === 'suspended') {
-            playerAudioCtx.resume();
-        }
+        if (playerAudioCtx.state === 'suspended') playerAudioCtx.resume();
     });
 
     function visualize() {
@@ -437,8 +502,7 @@
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
             const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
+            let barHeight, x = 0;
 
             for(let i = 0; i < bufferLength; i++) {
                 barHeight = dataArray[i] / 1.5;
