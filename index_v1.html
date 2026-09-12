@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test de Casque & Microphone avec Enregistrement et Balance</title>
+    <title>Test de Casque & Microphone complet</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -58,9 +58,9 @@
         }
         audio { width: 100%; margin-top: 10px; }
         
-        /* Styles pour le curseur de balance */
+        /* Styles pour la balance */
         .balance-container {
-            margin: 20px 0 10px 0;
+            margin: 20px 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -75,16 +75,31 @@
             margin: 0 15px;
             cursor: pointer;
         }
+
+        /* Style pour le bouton de téléchargement */
+        .download-btn {
+            background-color: #9b59b6;
+            display: inline-block;
+            text-decoration: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        .download-btn:hover { background-color: #8e44ad; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Test Micro & Enregistrement</h1>
-        
+    
     <div>
-        <button id="startBtn">Rec</button>
-        <button id="stopBtn" disabled>STOP</button>
+        <button id="startBtn">▶️</button>
+        <button id="stopBtn" disabled>🛑</button>
     </div>
 
     <div class="status" id="statusText">Statut : Prêt</div>
@@ -94,12 +109,15 @@
         <strong>🎙️ Votre Enregistrement :</strong><br>
         <audio id="audioPlayer" controls></audio>
 
-        <!-- Nouveau module de réglage de la balance G/D -->
+        <!-- Module de réglage de la balance G/D -->
         <div class="balance-container">
             <span class="balance-label">⬅️ Gauche</span>
             <input type="range" id="balanceSlider" class="balance-slider" min="-1" max="1" step="0.1" value="0">
             <span class="balance-label">Droite ➡️</span>
         </div>
+
+        <!-- Nouveau Bouton de Téléchargement -->
+        <a id="downloadBtn" class="download-btn" href="#" download="mon_test_audio.wav">⬇️ Télécharger l'audio</a>
     </div>
 </div>
 
@@ -112,6 +130,7 @@
     const playerContainer = document.getElementById('playerContainer');
     const audioPlayer = document.getElementById('audioPlayer');
     const balanceSlider = document.getElementById('balanceSlider');
+    const downloadBtn = document.getElementById('downloadBtn');
 
     let audioCtx;
     let analyser;
@@ -121,7 +140,6 @@
     let mediaRecorder;
     let audioChunks = [];
 
-    // Variables pour le contrôle de la balance du lecteur
     let playerAudioCtx;
     let playerSource;
     let pannerNode;
@@ -144,9 +162,20 @@
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                // Détecter le format supporté par le navigateur (WAV ou WebM pour Android)
+                const mimeType = mediaRecorder.mimeType || 'audio/wav';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
                 const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Associer l'audio au lecteur
                 audioPlayer.src = audioUrl;
+                
+                // Associer l'audio au bouton de téléchargement
+                downloadBtn.href = audioUrl;
+                // Ajuster l'extension selon le format réel capturé
+                const extension = mimeType.includes('webm') ? 'webm' : 'wav';
+                downloadBtn.download = `test_casque.${extension}`;
+
                 playerContainer.style.display = 'block'; 
             };
 
@@ -178,26 +207,23 @@
         cancelAnimationFrame(animationId);
         
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-        statusText.textContent = "Statut : Enregistrement terminé. Écoutez le résultat ci-dessous.";
+        statusText.textContent = "Statut : Enregistrement terminé. Écoutez ou téléchargez le résultat ci-dessous.";
         statusText.style.color = "#2ecc71";
         startBtn.disabled = false;
         stopBtn.disabled = true;
     });
 
-    // Configuration de la balance lors de la lecture audio
     function initPlayerAudio() {
         if (!playerAudioCtx) {
             playerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             playerSource = playerAudioCtx.createMediaElementSource(audioPlayer);
             pannerNode = playerAudioCtx.createStereoPanner();
 
-            // Connecter : Lecteur -> Contrôle Balance -> Haut-parleurs/Casque
             playerSource.connect(pannerNode);
             pannerNode.connect(playerAudioCtx.destination);
         }
     }
 
-    // Écouter les mouvements du curseur de balance
     balanceSlider.addEventListener('input', (e) => {
         initPlayerAudio();
         if (pannerNode) {
@@ -205,7 +231,6 @@
         }
     });
 
-    // Forcer l'activation du contexte audio au clic sur Lecture (sécurité navigateur)
     audioPlayer.addEventListener('play', () => {
         initPlayerAudio();
         if (playerAudioCtx.state === 'suspended') {
