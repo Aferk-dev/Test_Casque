@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Casque & Microphone avec Enregistrement et Balance</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        p { color: #555; font-size: 14px; line-height: 1.5; }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        button:hover { background-color: #27ae60; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #stopBtn { background-color: #e74c3c; }
+        #stopBtn:hover { background-color: #c0392b; }
+        canvas {
+            width: 100%;
+            height: 120px;
+            background-color: #2c3e50;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .status { font-weight: bold; margin: 15px 0; color: #7f8c8d; }
+        .audio-player-container {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px dashed #eceff1;
+        }
+        audio { width: 100%; margin-top: 10px; }
+        
+        /* Styles pour le curseur de balance */
+        .balance-container {
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .balance-label { font-weight: bold; font-size: 14px; color: #495057; }
+        .balance-slider {
+            flex-grow: 1;
+            margin: 0 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Test Micro & Enregistrement</h1>
+        
+    <div>
+        <button id="startBtn">Rec</button>
+        <button id="stopBtn" disabled>STOP</button>
+    </div>
+
+    <div class="status" id="statusText">Statut : Prêt</div>
+    <canvas id="visualizer"></canvas>
+
+    <div class="audio-player-container" id="playerContainer" style="display: none;">
+        <strong>🎙️ Votre Enregistrement :</strong><br>
+        <audio id="audioPlayer" controls></audio>
+
+        <!-- Nouveau module de réglage de la balance G/D -->
+        <div class="balance-container">
+            <span class="balance-label">⬅️ Gauche</span>
+            <input type="range" id="balanceSlider" class="balance-slider" min="-1" max="1" step="0.1" value="0">
+            <span class="balance-label">Droite ➡️</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusText = document.getElementById('statusText');
+    const canvas = document.getElementById('visualizer');
+    const canvasCtx = canvas.getContext('2d');
+    const playerContainer = document.getElementById('playerContainer');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const balanceSlider = document.getElementById('balanceSlider');
+
+    let audioCtx;
+    let analyser;
+    let stream;
+    let source;
+    let animationId;
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // Variables pour le contrôle de la balance du lecteur
+    let playerAudioCtx;
+    let playerSource;
+    let pannerNode;
+
+    startBtn.addEventListener('click', async () => {
+        audioChunks = []; 
+        playerContainer.style.display = 'none';
+
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            
+            statusText.textContent = "🔴 Enregistrement en cours... Parlez maintenant.";
+            statusText.style.color = "#e74c3c";
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayer.src = audioUrl;
+                playerContainer.style.display = 'block'; 
+            };
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+
+            source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+
+            mediaRecorder.start();
+            visualize();
+
+        } catch (err) {
+            console.error("Erreur :", err);
+            statusText.textContent = "Erreur : Impossible d'accéder au micro.";
+            statusText.style.color = "#e74c3c";
+        }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+        }
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        if (audioCtx) { audioCtx.close(); }
+        cancelAnimationFrame(animationId);
+        
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        statusText.textContent = "Statut : Enregistrement terminé. Écoutez le résultat ci-dessous.";
+        statusText.style.color = "#2ecc71";
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    });
+
+    // Configuration de la balance lors de la lecture audio
+    function initPlayerAudio() {
+        if (!playerAudioCtx) {
+            playerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            playerSource = playerAudioCtx.createMediaElementSource(audioPlayer);
+            pannerNode = playerAudioCtx.createStereoPanner();
+
+            // Connecter : Lecteur -> Contrôle Balance -> Haut-parleurs/Casque
+            playerSource.connect(pannerNode);
+            pannerNode.connect(playerAudioCtx.destination);
+        }
+    }
+
+    // Écouter les mouvements du curseur de balance
+    balanceSlider.addEventListener('input', (e) => {
+        initPlayerAudio();
+        if (pannerNode) {
+            pannerNode.pan.value = e.target.value;
+        }
+    });
+
+    // Forcer l'activation du contexte audio au clic sur Lecture (sécurité navigateur)
+    audioPlayer.addEventListener('play', () => {
+        initPlayerAudio();
+        if (playerAudioCtx.state === 'suspended') {
+            playerAudioCtx.resume();
+        }
+    });
+
+    function visualize() {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+            animationId = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.fillStyle = '#2c3e50';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 1.5;
+                canvasCtx.fillStyle = `rgb(${barHeight + 100}, 46, 214)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        draw();
+    }
+</script>
+
+</body>
+</html>
